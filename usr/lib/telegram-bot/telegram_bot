@@ -49,6 +49,9 @@ Try it !
 Send [/start](/start) to get my commands list."
 
 command_start="
+==============================
+           ${HOST}
+==============================
 */memory${HOST}* return RAM info
 */clients${HOST}* connected clients
 */wll_list${HOST}* wifi clients
@@ -56,7 +59,7 @@ command_start="
 */reboot${HOST}* reboot the device
 */wol${HOST} <mac_address>* wake on lan over the Internet
 */wanip${HOST}* WAN ip address
-*/<script_name>-${HOST}* any scripts in the \`plugins\` directory
+*/<script_name>${HOST}* any scripts in the \`plugins\` directory
 =============================="
 
 curl -k -s -X POST $api/sendMessage -d chat_id=$chat_id -d parse_mode=Markdown --data-urlencode text="Router started." &> $telegram_log_file
@@ -96,44 +99,39 @@ do
 					text="This is a Private bot. If you want to implement one for you, check this out https://github.com/ixiumu/openwrt-telegram-bot" &> $telegram_log_file
 				curl -k -s -X POST $api/leaveChat -d chat_id=$origin  &> $telegram_log_file
 			else
-				
+				is_a_cmd=$(echo "$is_a_cmd" | sed "s/$HOST/ /g" | awk '{print $1}' )
 				if [ $(echo "$is_a_cmd" | grep "bot_command") != "" ]; then
-					cmdh=$(echo $command | sed 's/-/ /g' | awk '{print $2}')
-					cmd=$(echo $command | sed 's/-/ /g' | awk '{print $1}')
-					#if [ $cmdh = $HOST ]; then
-						prms=$(echo $command | awk '{$1="";print $0}' | sed 's/^[ \t]*//g')
-						parms=${prms//[\"\&\;\\\>\<\|]/}
-						DATE=`date +%Y-%m-%d_%H:%M:%S`
-						RETURN_TEXT=""
-						case "$cmd" in
-							("/start")
-								RETURN_TEXT="$(${plugins}/start.sh)"
-								reply_to_msg $msg_id $origin "\${RETURN_TEXT}\${command_start}"
-								;;
-							("/reboot")
-														(echo "Call $cmd" | logger -t "telegram_bot" -p daemon.info)&
-														RETURN_TEXT="Command executed!"
-								reply_to_msg $msg_id $origin "\${RETURN_TEXT}" && sleep 5 && reboot
-								;;
-							("/wol")
+					cmd=$(echo $command | sed "s/$HOST/ /g" | awk '{print $1}')
+					prms=$(echo $command | awk '{$1="";print $0}' | sed 's/^[ \t]*//g')
+					parms=${prms//[\"\&\;\\\>\<\|]/}
+					DATE=`date +%Y-%m-%d_%H:%M:%S`
+					RETURN_TEXT=""
+					case "$cmd" in
+						("/start")
+							RETURN_TEXT="$(${plugins}/start.sh)"
+							reply_to_msg $msg_id $origin "\${RETURN_TEXT}\${command_start}"
+							;;
+						("/reboot")
+							(echo "Call $cmd" | logger -t "telegram_bot" -p daemon.info)&
+							RETURN_TEXT="Command executed!"
+							reply_to_msg $msg_id $origin "\${RETURN_TEXT}" && sleep 5 && reboot
+							;;
+						("/wol")
+							(echo "Call $cmd [$parms]" | logger -t "telegram_bot" -p daemon.info)&
+							RETURN_TEXT="$(${plugins}/wol.sh ${parms})"
+							reply_to_msg $msg_id $origin "\${RETURN_TEXT}"
+														;;
+						(*)
+							if [ -f "${plugins}/${cmd}.sh" ] ; then
 								(echo "Call $cmd [$parms]" | logger -t "telegram_bot" -p daemon.info)&
-								RETURN_TEXT="$(${plugins}/wol.sh ${parms})"
-								reply_to_msg $msg_id $origin "\${RETURN_TEXT}"
-															;;
-							(*)
-								if [ -f "${plugins}/${cmd}.sh" ] ; then
-									(echo "Call $cmd [$parms]" | logger -t "telegram_bot" -p daemon.info)&
-									RETURN_TEXT=$(${plugins}/${cmd}.sh ${parms})
-								else
-															RETURN_TEXT="Command *${cmd}* not found!"
-								fi
+								RETURN_TEXT=$(${plugins}/${cmd}.sh ${parms})
+							else
+								RETURN_TEXT="Command *${cmd}* not found!"
+							fi
 
-															reply_to_msg $msg_id $origin "\${RETURN_TEXT}"
-								;;
-											esac
-					#fi
-				#else
- 					#reply_to_msg $msg_id $origin "\${command_not_found}"
+								reply_to_msg $msg_id $origin "\${RETURN_TEXT}"
+							;;
+								esac
 				fi
 
 			fi
