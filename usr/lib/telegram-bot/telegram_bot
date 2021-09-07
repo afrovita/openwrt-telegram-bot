@@ -125,12 +125,12 @@ do
 								(echo "Call $cmd [$parms]" | logger -t "telegram_bot" -p daemon.info)&
 								RETURN_TEXT=$(${plugins}/${cmd}.sh ${parms})
 							else
-								RETURN_TEXT="Command *${cmd}* not found!"
+								RETURN_TEXT=${HOST}
 							fi
 
 								reply_to_msg $msg_id $origin "\${RETURN_TEXT}"
 							;;
-								esac
+					esac
 				fi
 
 			fi
