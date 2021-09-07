@@ -108,8 +108,7 @@ do
 					RETURN_TEXT=""
 					case "$cmd" in
 						("/start")
-							RETURN_TEXT="$(${plugins}/start.sh)"
-							reply_to_msg $msg_id $origin "\${RETURN_TEXT}\${command_start}"
+							reply_to_msg $msg_id $origin "\${command_start}"
 							;;
 						("/reboot")
 							(echo "Call $cmd" | logger -t "telegram_bot" -p daemon.info)&
