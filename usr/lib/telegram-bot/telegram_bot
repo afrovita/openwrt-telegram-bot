@@ -7,6 +7,7 @@ chat_id=$(uci get telegram_bot.config.chat_id 2>/dev/nul)
 server=$(uci get telegram_bot.config.server 2>/dev/nul)
 timeout=$(uci get telegram_bot.config.timeout 2>/dev/nul)
 polling_time=$(uci get telegram_bot.config.polling_time 2>/dev/nul)
+HOST=$(uci get dhcp.@domain[0].name 2>/dev/nul)
 
 if [ -z "$token" ]; then
 	echo "token is empty"
@@ -47,14 +48,16 @@ Commands are words beginning with a slash.
 Try it !
 Send [/start](/start) to get my commands list."
 
-command_start="*/memory* return RAM info
-*/clients* connected clients
-*/wll_list* wifi clients
-*/wifi_list* wifi info
-*/reboot* reboot the device
-*/wol <mac_address>* wake on lan over the Internet
-*/wanip* WAN ip address
-*/<script_name>* any scripts in the \`plugins\` directory"
+command_start="
+*/memory${HOST}* return RAM info
+*/clients${HOST}* connected clients
+*/wll_list${HOST}* wifi clients
+*/wifi_list${HOST}* wifi info
+*/reboot${HOST}* reboot the device
+*/wol${HOST} <mac_address>* wake on lan over the Internet
+*/wanip${HOST}* WAN ip address
+*/<script_name>-${HOST}* any scripts in the \`plugins\` directory
+=============================="
 
 curl -k -s -X POST $api/sendMessage -d chat_id=$chat_id -d parse_mode=Markdown --data-urlencode text="Router started." &> $telegram_log_file
 
@@ -93,41 +96,44 @@ do
 					text="This is a Private bot. If you want to implement one for you, check this out https://github.com/ixiumu/openwrt-telegram-bot" &> $telegram_log_file
 				curl -k -s -X POST $api/leaveChat -d chat_id=$origin  &> $telegram_log_file
 			else
+				
 				if [ $(echo "$is_a_cmd" | grep "bot_command") != "" ]; then
-					
-					cmd=$(echo $command | awk '{print $1}')
-					prms=$(echo $command | awk '{$1="";print $0}' | sed 's/^[ \t]*//g')
-					parms=${prms//[\"\&\;\\\>\<\|]/}
-					DATE=`date +%Y-%m-%d_%H:%M:%S`
-					RETURN_TEXT=""
-					case "$cmd" in
-						("/start")
-							reply_to_msg $msg_id $origin "\${command_start}"
-							;;
-						("/reboot")
-                                                	(echo "Call $cmd" | logger -t "telegram_bot" -p daemon.info)&
-	                                                RETURN_TEXT="Command executed!"
-							reply_to_msg $msg_id $origin "\${RETURN_TEXT}" && sleep 5 && reboot
-							;;
-						("/wol")
-							(echo "Call $cmd [$parms]" | logger -t "telegram_bot" -p daemon.info)&
-							RETURN_TEXT="$(${plugins}/wol.sh ${parms})"
-							reply_to_msg $msg_id $origin "\${RETURN_TEXT}"
-                                                        ;;
-						(*)
-							if [ -f "${plugins}/${cmd}.sh" ] ; then
+					cmdh=$(echo $command | sed 's/-/ /g' | awk '{print $2}')
+					cmd=$(echo $command | sed 's/-/ /g' | awk '{print $1}')
+					#if [ $cmdh = $HOST ]; then
+						prms=$(echo $command | awk '{$1="";print $0}' | sed 's/^[ \t]*//g')
+						parms=${prms//[\"\&\;\\\>\<\|]/}
+						DATE=`date +%Y-%m-%d_%H:%M:%S`
+						RETURN_TEXT=""
+						case "$cmd" in
+							("/start")
+								RETURN_TEXT="$(${plugins}/start.sh)"
+								reply_to_msg $msg_id $origin "\${RETURN_TEXT}\${command_start}"
+								;;
+							("/reboot")
+														(echo "Call $cmd" | logger -t "telegram_bot" -p daemon.info)&
+														RETURN_TEXT="Command executed!"
+								reply_to_msg $msg_id $origin "\${RETURN_TEXT}" && sleep 5 && reboot
+								;;
+							("/wol")
 								(echo "Call $cmd [$parms]" | logger -t "telegram_bot" -p daemon.info)&
-								RETURN_TEXT=$(${plugins}/${cmd}.sh ${parms})
-							else
-                                    		        	RETURN_TEXT="Command *${cmd}* not found!"
-							fi
+								RETURN_TEXT="$(${plugins}/wol.sh ${parms})"
+								reply_to_msg $msg_id $origin "\${RETURN_TEXT}"
+															;;
+							(*)
+								if [ -f "${plugins}/${cmd}.sh" ] ; then
+									(echo "Call $cmd [$parms]" | logger -t "telegram_bot" -p daemon.info)&
+									RETURN_TEXT=$(${plugins}/${cmd}.sh ${parms})
+								else
+															RETURN_TEXT="Command *${cmd}* not found!"
+								fi
 
-                                                        reply_to_msg $msg_id $origin "\${RETURN_TEXT}"
-							;;
-                                    	esac
-
-				else
- 					reply_to_msg $msg_id $origin "\${command_not_found}"
+															reply_to_msg $msg_id $origin "\${RETURN_TEXT}"
+								;;
+											esac
+					#fi
+				#else
+ 					#reply_to_msg $msg_id $origin "\${command_not_found}"
 				fi
 
 			fi
