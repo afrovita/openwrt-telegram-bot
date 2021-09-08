@@ -62,7 +62,7 @@ command_start="
 */<script_name>${HOST}* any scripts in the \`plugins\` directory
 =============================="
 
-curl -k -s -X POST $api/sendMessage -d chat_id=$chat_id -d parse_mode=Markdown --data-urlencode text="Router started." &> $telegram_log_file
+curl -k -s -X POST $api/sendMessage -d chat_id=$chat_id -d parse_mode=Markdown --data-urlencode text="${HOST} started." &> $telegram_log_file
 
 if [ -f "$offset_file" ] ; then
 	offset=$( cat $offset_file )
