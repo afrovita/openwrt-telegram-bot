@@ -7,7 +7,7 @@ chat_id=$(uci get telegram_bot.config.chat_id 2>/dev/nul)
 server=$(uci get telegram_bot.config.server 2>/dev/nul)
 timeout=$(uci get telegram_bot.config.timeout 2>/dev/nul)
 polling_time=$(uci get telegram_bot.config.polling_time 2>/dev/nul)
-HOST=$(uci get dhcp.@domain[0].name 2>/dev/nul)
+HOST=$(uci get system.@system[0].hostname 2>/dev/nul)
 
 if [ -z "$token" ]; then
 	echo "token is empty"
